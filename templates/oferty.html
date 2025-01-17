@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Oferty</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Ikony Bootstrap -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <style>
+    body {
+        background-color: #f8f9fa;
+        display: flex;
+        margin: 0;
+        overflow-x: hidden;
+
+    }
+    .sidebar {
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      padding-top: 60px;
+      width: 220px;
+      background-color: #343a40;
+      overflow-y: auto;
+    }
+
+
+    .sidebar a {
+      color: #ffffff;
+      padding: 15px 20px;
+      display: block;
+      text-decoration: none;
+    }
+    .sidebar a:hover {
+      background-color: #495057;
+      text-decoration: none;
+    }
+    .main-content {
+      margin-left: 220px;
+      padding: 20px;
+    }
+    .chart-container {
+      width: 100%;
+      height: 200px; 
+    }
+    .offer-card {
+      cursor: pointer;
+      color: #ffffff; 
+    }
+    .offer-card .card-body {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2 class="text-center text-white mb-4">Menu</h2>
+        <a href="/dashboard/"><i class="bi bi-house-door-fill me-2"></i>Strona Główna</a>
+        <a href="/products_stats/"><i class="bi bi-box-seam me-2"></i>Produkty</a>
+        <a href="/klienci/"><i class="bi bi-people-fill me-2"></i>Klienci</a>
+        <a href="/grupy/"><i class="bi bi-collection-fill me-2"></i>Grupy</a>
+        <a href="/oferty/"><i class="bi bi-bag-fill me-2"></i>Oferty</a>
+        <a href="/kreator_ofert/"><i class="bi bi-pencil-square me-2"></i>Kreator Ofert</a>
+        <a href="/predykcje/"><i class="bi bi-graph-up-arrow me-2"></i>Predykcje</a>
+        <a href="/kampanie/"><i class="bi bi-megaphone-fill me-2"></i>Kampanie</a>
+        <a href="/create_campaign/"><i class="bi bi-megaphone-fill me-2"></i>Kreator Kampanii</a>
+        <a href="/notatki/"><i class="bi bi-sticky me-2"></i>Notatki</a>
+</div>
+<div class="main-content container-fluid py-4">
+  <h1 class="mb-4">Oferty</h1>
+
+  <!-- Opcje sortowania -->
+  <div class="mb-4">
+    <label for="sortSelect" class="form-label">Sortuj według typu oferty:</label>
+    <select class="form-select w-25" id="sortSelect">
+      <option value="all" {% if sort_type == 'all' %}selected{% endif %}>Wszystkie</option>
+      <option value="Oferta Standardowa" {% if sort_type == 'Oferta Standardowa' %}selected{% endif %}>Oferta Standardowa</option>
+      <option value="Oferta Spersonalizowana" {% if sort_type == 'Oferta Spersonalizowana' %}selected{% endif %}>Oferta Spersonalizowana</option>
+      <option value="Oferta Grupowa" {% if sort_type == 'Oferta Grupowa' %}selected{% endif %}>Oferta Grupowa</option>
+    </select>
+  </div>
+
+  <!-- Lista ofert w formie kafelków -->
+  <div class="row row-cols-1 row-cols-md-3 g-4" id="offersContainer">
+    {% for oferta in oferty %}
+    <div class="col offer-item" data-type="{{ oferta.typ }}">
+      <div class="card offer-card {% if oferta.typ == 'Oferta Standardowa' %}bg-primary{% elif oferta.typ == 'Oferta Spersonalizowana' %}bg-success{% elif oferta.typ == 'Oferta Grupowa' %}bg-warning text-dark{% else %}bg-secondary{% endif %}" data-bs-toggle="modal" data-bs-target="#offerModal{{ forloop.counter }}">
+        <div class="card-body">
+          <h5 class="card-title">{{ oferta.produkt.nazwa }}</h5>
+          <p class="card-text">
+            <strong>Typ Oferty:</strong> {{ oferta.typ }}<br>
+            {% if oferta.typ == 'Oferta Spersonalizowana' %}
+              <strong>Klient:</strong> {{ oferta.additional_info.imie }} {{ oferta.additional_info.nazwisko }}<br>
+            {% elif oferta.typ == 'Oferta Grupowa' %}
+              <strong>Grupa:</strong> {{ oferta.additional_info.nazwa }}<br>
+            {% endif %}
+            <strong>Cena po przecenie:</strong> {{ oferta.cena }} PLN<br>
+            <strong>Trwanie oferty:</strong> {{ oferta.data_rozpoczecia|date:"d-m-Y H:i" }} - {{ oferta.data_zakonczenia|date:"d-m-Y H:i" }}<br>
+            <strong>Liczba sprzedanych sztuk:</strong> {{ oferta.liczba_zakupow }}
+          </p>
+          <div class="chart-container">
+            <canvas id="chart{{ forloop.counter }}"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal dla każdej oferty -->
+<div class="modal fade" id="offerModal{{ forloop.counter }}" tabindex="-1" aria-labelledby="offerModalLabel{{ forloop.counter }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+       <!-- Przedłuż Ofertę Form -->
+          <form method="POST" action="{% url 'przedluz_oferte' oferta.typ oferta.id %}">
+            {% csrf_token %}
+            <div class="modal-header">
+              <h5 class="modal-title" id="offerModalLabel{{ forloop.counter }}">
+                {{ oferta.typ }} - {{ oferta.produkt.nazwa }}
+              </h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+            </div>
+            <div class="modal-body">
+              <p><strong>Produkt:</strong> {{ oferta.produkt.nazwa }}</p>
+              <p><strong>Cena:</strong> {{ oferta.cena }} PLN</p>
+              <p><strong>Rozpoczęcie:</strong> {{ oferta.data_rozpoczecia|date:"d-m-Y H:i" }}</p>
+              <p><strong>Zakończenie:</strong> {{ oferta.data_zakonczenia|date:"d-m-Y H:i" }}</p>
+              <p><strong>Liczba Zakupów:</strong> {{ oferta.liczba_zakupow }}</p>
+
+              {% if oferta.typ == 'Oferta Spersonalizowana' %}
+                  <p><strong>Klient:</strong> {{ oferta.additional_info.imie }} {{ oferta.additional_info.nazwisko }}</p>
+              {% elif oferta.typ == 'Oferta Grupowa' %}
+                  <p><strong>Grupa:</strong> {{ oferta.additional_info.nazwa }}</p>
+              {% endif %}
+            </div>
+            <div class="modal-footer">
+              <!-- Przedłuż Ofertę -->
+              <button type="button" class="btn btn-secondary" data-bs-toggle="collapse" data-bs-target="#extendSection{{ forloop.counter }}" aria-expanded="false" aria-controls="extendSection{{ forloop.counter }}">
+                <i class="bi bi-arrow-clockwise"></i> Przedłuż Ofertę
+              </button>
+              <div class="collapse w-100" id="extendSection{{ forloop.counter }}">
+                <div class="card card-body mt-2">
+                  <div class="mb-3">
+                    <label for="dni{{ forloop.counter }}" class="form-label">Przedłuż o (dni):</label>
+                    <input type="number" class="form-control" id="dni{{ forloop.counter }}" name="dni" min="1" required>
+                  </div>
+                  <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-arrow-repeat"></i> Przedłuż
+                  </button>
+                </div>
+              </div>
+          </form>
+
+          <!-- Zakończ Ofertę Form -->
+          <form method="POST" action="{% url 'zakoncz_oferte' oferta.typ oferta.id %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Czy na pewno chcesz zakończyć tę ofertę?')">
+              <i class="bi bi-x-circle"></i> Zakończ Ofertę
+            </button>
+          </form>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+    {% empty %}
+    <p>Brak ofert do wyświetlenia.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Bootstrap + Popper -->
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Inicjalizacja wykresów dla każdej oferty
+    {% for oferta in oferty %}
+    var ctx{{ forloop.counter }} = document.getElementById('chart{{ forloop.counter }}').getContext('2d');
+    var chart{{ forloop.counter }} = new Chart(ctx{{ forloop.counter }}, {
+      type: 'line',
+      data: {
+        labels: {{ oferta.labels|safe }},
+        datasets: [{
+          label: 'Sprzedaż przedmiotu',
+          data: {{ oferta.sprzedaz|safe }},
+          backgroundColor: 'rgba(54, 162, 235, 0.2)', // Kolor tła
+          borderColor: 'rgba(54, 162, 235, 1)', // Kolor linii
+          borderWidth: 1,
+          fill: true,
+          tension: 0.3 // Zakrzywienie linii
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false, // Ukrywa legendę
+          },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Liczba Sprzedaży'
+            },
+            ticks: {
+              precision:0
+            }
+          },
+          x: {
+            title: {
+              display: true,
+              text: 'Data'
+            }
+          }
+        }
+      }
+    });
+    {% endfor %}
+
+    // Obsługa sortowania ofert
+    const sortSelect = document.getElementById('sortSelect');
+    sortSelect.addEventListener('change', function() {
+      const selectedType = this.value;
+      const offerItems = document.querySelectorAll('.offer-item');
+
+      offerItems.forEach(function(item) {
+        if (selectedType === 'all' || item.getAttribute('data-type') === selectedType) {
+          item.style.display = 'block';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    });
+  });
+</script>
+
+</body>
+</html>

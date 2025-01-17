@@ -1,0 +1,196 @@
+ <!-- search_results.html -->
+<!DOCTYPE html>
+<html>
+{% load static %}
+
+<head>
+    <title>Wyniki wyszukiwania</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #f0f4f8, #d9e6f2);
+            margin: 0;
+            color: #333;
+        }
+        
+         button {
+            padding: 10px 20px;
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #357abd;
+        }
+        
+        h2 {
+            text-align: center;
+            color: #4a90e2;
+            margin: 20px 0;
+        }
+        .items-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            padding: 20px;
+        }
+        .item-card {
+            border-radius: 10px;
+            background: white;
+            width: 250px;
+            text-align: center;
+            padding: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .item-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+        .item-card img {
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        .item-card h3 {
+            margin: 10px 0;
+            color: #4a90e2;
+        }
+        .item-card p {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+        .no-results {
+            text-align: center;
+            font-size: 18px;
+            margin-top: 20px;
+            color: #e74c3c;
+        }
+        .add-to-cart-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #4a90e2;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    text-decoration: none;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 10px;
+    transition: background-color 0.2s;
+}
+
+.add-to-cart-btn:hover {
+    background-color: #357abd;
+}
+         .cart-message {
+            text-align: center;
+            margin-top: 10px;
+            font-weight: bold;
+            
+        }
+        .cart-message.success {
+            color: #2ecc71;
+        }
+        .cart-message.error {
+            color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <h2>Wyniki wyszukiwania</h2>
+
+    <div class="items-container">
+    {% if produkty %}
+        {% for produkt in produkty %}
+            <div class="item-card {% if produkt.oferta %} offer-applied {% endif %}">
+                <h3>{{ produkt.nazwa }}</h3>
+                <img src="{% static produkt.sciezka_do_zdjecia %}" alt="{{ produkt.nazwa }}">
+                
+                {% if produkt.oferta %}
+                    <p class="old-price" style="text-decoration: line-through; color: #e74c3c;">{{ produkt.cena|default:produkt.cena }} zł</p>
+                    <p class="new-price" style="color: #27ae60;">{{ produkt.oferta.cena }} zł</p>
+                {% else %}
+                    <p>Cena: {{ produkt.cena }} zł</p>
+                {% endif %}
+                
+                <button data-product-id="{{ produkt.id }}" class="add-to-cart-btn">Dodaj do koszyka</button>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p class="no-results">Brak wyników dla "{{ request.GET.query }}"</p>
+    {% endif %}
+</div>
+
+<style>
+    .item-card.offer-applied {
+        border: 2px solid #e74c3c;
+        background-color: #f9f9f9;
+    }
+    .item-card .old-price {
+        color: #e74c3c;
+        text-decoration: line-through;
+    }
+    .item-card .new-price {
+        color: #27ae60;
+        font-weight: bold;
+    }
+</style>
+<div class="cart-message" id="cart-message"></div>
+ <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const addToCartButtons = document.querySelectorAll('.add-to-cart-btn');
+            const cartMessage = document.getElementById('cart-message');
+
+            addToCartButtons.forEach(button => {
+                button.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    const productId = this.getAttribute('data-product-id');
+
+                    fetch(`/add_to_cart/${productId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'Content-Type': 'application/json', // Send as JSON if needed
+                        },
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                cartMessage.textContent = data.message;
+                                cartMessage.classList.remove('error');
+                                cartMessage.classList.add('success');
+                            } else {
+                                cartMessage.textContent = data.message;
+                                cartMessage.classList.remove('success');
+                                cartMessage.classList.add('error');
+                            }
+                            cartMessage.style.display = 'block';
+
+                             setTimeout(() => {
+                                    cartMessage.style.display = 'none';
+                                }, 3000); 
+                        })
+                        .catch(error => {
+                             cartMessage.textContent = 'Błąd dodawania do koszyka.';
+                                cartMessage.classList.remove('success');
+                              cartMessage.classList.add('error');
+                            cartMessage.style.display = 'block';
+                             setTimeout(() => {
+                                    cartMessage.style.display = 'none';
+                                }, 3000); 
+                            console.error('Error:', error);
+                        });
+                });
+            });
+        });
+    </script>
+</body>
+</html>

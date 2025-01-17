@@ -1,0 +1,199 @@
+<!-- home.html -->
+<!DOCTYPE html>
+<html>
+{% load static %}
+<head>
+    <title>Strona główna</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #f0f4f8, #d9e6f2);
+            color: #333;
+        }
+        h2, h3 {
+            text-align: center;
+            color: #4a90e2;
+        }
+        .items-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            padding: 20px;
+        }
+        .item-card {
+            border-radius: 10px;
+            background: white;
+            width: 250px;
+            text-align: center;
+            padding: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .item-card img {
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        .item-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+        form {
+            text-align: center;
+            margin: 20px 0;
+        }
+        input[type="text"] {
+            width: 50%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            outline: none;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #357abd;
+        }
+        a {
+            color: #4a90e2;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .welcome-message {
+            text-align: center;
+            margin: 10px 0;
+        }
+        .cart-message {
+            text-align: center;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .cart-message.success {
+            color: #2ecc71;
+        }
+        .cart-message.error {
+            color: #e74c3c;
+        }
+        .offer-applied {
+            border: 2px solid #e74c3c; /* czerwona ramka */
+            background-color: #f9f9f9;
+        }
+        .old-price {
+            color: #e74c3c;
+            text-decoration: line-through;
+        }
+        .new-price {
+            color: #27ae60;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h2>Strona główna</h2>
+
+    <div class="welcome-message">
+        {% if username %}
+            <p>Witaj, {{ username }}! Jesteś zalogowany.</p>
+            <a href="{% url 'account' %}">Konto</a> |
+            <a href="{% url 'view_cart' %}">Koszyk</a> |
+            <a href="{% url 'logout' %}">Wyloguj się</a>
+        {% else %}
+            <p>Nie jesteś zalogowany.</p>
+            <a href="{% url 'login' %}">Zaloguj się</a> |
+            <a href="{% url 'register' %}">Zarejestruj się</a>
+        {% endif %}
+    </div>
+
+    <h3>Wyszukaj produkty</h3>
+    <form method="GET" action="{% url 'search_results' %}">
+        <input type="text" name="query" placeholder="Wpisz nazwę produktu" required>
+        <button type="submit">Szukaj</button>
+    </form>
+
+    <div class="cart-message" id="cart-message"></div>
+
+    <h3>Oferty specjalne</h3>
+    <div class="items-container">
+        {% for produkt in produkty %}
+            <div class="item-card {% if produkt.oferta %}offer-applied{% endif %}">
+                <h3>{{ produkt.nazwa }}</h3>
+                <img src="{% static produkt.sciezka_do_zdjecia %}" alt="{{ produkt.nazwa }}">
+
+                {% if produkt.oferta %}
+                    <!-- Stara cena przekreślona -->
+                    <p class="old-price">{{ produkt.cena }} zł</p>
+                    <!-- Nowa cena (promocyjna) -->
+                    <p class="new-price">{{ produkt.cena_promocyjna }} zł</p>
+                {% else %}
+                    <p>Cena: <strong>{{ produkt.cena }} zł</strong></p>
+                {% endif %}
+
+                <button data-product-id="{{ produkt.id }}" class="add-to-cart-btn">Dodaj do koszyka</button>
+            </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const addToCartButtons = document.querySelectorAll('.add-to-cart-btn');
+            const cartMessage = document.getElementById('cart-message');
+
+            addToCartButtons.forEach(button => {
+                button.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    const productId = this.getAttribute('data-product-id');
+
+                    fetch(`/add_to_cart/${productId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'Content-Type': 'application/json', // jeśli chcemy wysyłać JSON
+                        },
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            cartMessage.textContent = data.message;
+                            cartMessage.classList.remove('error');
+                            cartMessage.classList.add('success');
+                        } else {
+                            cartMessage.textContent = data.message;
+                            cartMessage.classList.remove('success');
+                            cartMessage.classList.add('error');
+                        }
+                        cartMessage.style.display = 'block';
+                        setTimeout(() => {
+                            cartMessage.style.display = 'none';
+                        }, 3000);
+                    })
+                    .catch(error => {
+                        cartMessage.textContent = 'Błąd dodawania do koszyka.';
+                        cartMessage.classList.remove('success');
+                        cartMessage.classList.add('error');
+                        cartMessage.style.display = 'block';
+                        setTimeout(() => {
+                            cartMessage.style.display = 'none';
+                        }, 3000);
+                        console.error('Error:', error);
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>

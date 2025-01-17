@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Notatki</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            display: flex;
+            margin: 0;
+            overflow-x: hidden;
+        }
+        .sidebar {
+            width: 220px;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            padding-top: 60px;
+            background-color: #343a40;
+            overflow-y: auto;
+        }
+        .sidebar a {
+            color: #ffffff;
+            padding: 15px 20px;
+            display: block;
+            text-decoration: none;
+        }
+        .sidebar a:hover {
+            background-color: #495057;
+        }
+        .main-content {
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+        }
+        .note-card {
+            cursor: grab;
+            border-radius: 8px;
+            padding: 20px;
+            color: #000;
+            text-decoration: none;
+            transition: box-shadow 0.3s;
+        }
+        .note-card:active {
+            cursor: grabbing;
+        }
+        .note-card:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .modal-body {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+       <h2 class="text-center text-white mb-4">Menu</h2>
+        <a href="/dashboard/"><i class="bi bi-house-door-fill me-2"></i>Strona Główna</a>
+        <a href="/products_stats/"><i class="bi bi-box-seam me-2"></i>Produkty</a>
+        <a href="/klienci/"><i class="bi bi-people-fill me-2"></i>Klienci</a>
+        <a href="/grupy/"><i class="bi bi-collection-fill me-2"></i>Grupy</a>
+        <a href="/oferty/"><i class="bi bi-bag-fill me-2"></i>Oferty</a>
+        <a href="/kreator_ofert/"><i class="bi bi-pencil-square me-2"></i>Kreator Ofert</a>
+        <a href="/predykcje/"><i class="bi bi-graph-up-arrow me-2"></i>Predykcje</a>
+        <a href="/kampanie/"><i class="bi bi-megaphone-fill me-2"></i>Kampanie</a>
+        <a href="/create_campaign/"><i class="bi bi-megaphone-fill me-2"></i>Kreator Kampanii</a>
+        <a href="/notatki/"><i class="bi bi-sticky me-2"></i>Notatki</a>
+    </div>
+
+    <div class="main-content">
+        <div class="container my-4">
+            <h1 class="mb-4">Notatki</h1>
+            <button class="btn btn-primary mb-4" id="dodajNotatke">Dodaj Notatkę</button>
+            <div class="row row-cols-1 row-cols-md-3 g-4" id="notatkiContainer">
+                {% for notatka in notatki %}
+                <div class="col" data-id="{{ notatka.id }}">
+                    <div class="note-card" style="background-color: {{ notatka.kolor }}" data-id="{{ notatka.id }}">
+                        <h5>{{ notatka.tytul }}</h5>
+                        <small class="text-muted">Ostatnia aktualizacja: {{ notatka.data_aktualizacji|date:"d-m-Y H:i" }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="notatkaModal" tabindex="-1" aria-labelledby="notatkaModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form id="notatkaForm">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="notatkaModalLabel">Edytuj Notatkę</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="notatkaTytul" class="form-label">Tytuł</label>
+                            <input type="text" class="form-control" id="notatkaTytul" name="tytul" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="notatkaTresc" class="form-label">Treść</label>
+                            <textarea class="form-control" id="notatkaTresc" name="tresc" rows="5" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="notatkaKolor" class="form-label">Kolor</label>
+                            <input type="color" class="form-control form-control-color" id="notatkaKolor" name="kolor">
+                        </div>
+                        <input type="hidden" id="notatkaId" name="id">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Zapisz</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const notatkiContainer = document.getElementById('notatkiContainer');
+            const notatkaModal = new bootstrap.Modal(document.getElementById('notatkaModal'));
+            const notatkaForm = document.getElementById('notatkaForm');
+
+           
+            Sortable.create(notatkiContainer, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                onEnd: function (evt) {
+                    const order = [];
+                    notatkiContainer.querySelectorAll('.col').forEach((el, index) => {
+                        order.push({ id: el.getAttribute('data-id'), position: index });
+                    });
+                    
+                    fetch('/notatki/reorder', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ order }),
+                    });
+                },
+            });
+
+            document.getElementById('dodajNotatke').addEventListener('click', function () {
+                document.getElementById('notatkaTytul').value = '';
+                document.getElementById('notatkaTresc').value = '';
+                document.getElementById('notatkaKolor').value = '#ffffff';
+                document.getElementById('notatkaId').value = '';
+                notatkaModal.show();
+            });
+
+            notatkiContainer.addEventListener('click', function (e) {
+                const card = e.target.closest('.note-card');
+                if (!card) return;
+
+                const notatkaId = card.getAttribute('data-id');
+                fetch(`/notatki/${notatkaId}/`)
+                    .then(res => res.json())
+                    .then(data => {
+                        document.getElementById('notatkaTytul').value = data.tytul;
+                        document.getElementById('notatkaTresc').value = data.tresc;
+                        document.getElementById('notatkaKolor').value = data.kolor;
+                        document.getElementById('notatkaId').value = data.id;
+                        notatkaModal.show();
+                    });
+            });
+
+            notatkaForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                const formData = new FormData(notatkaForm);
+                const action = formData.get('id') ? 'edytuj' : 'dodaj';
+                formData.append('action', action);
+
+                fetch('/notatki/', {
+                    method: 'POST',
+                    body: formData,
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (action === 'dodaj') {
+                            const newNote = document.createElement('div');
+                            newNote.className = 'col';
+                            newNote.setAttribute('data-id', data.id);
+                            newNote.innerHTML = `
+                                <div class="note-card" style="background-color: ${data.kolor}" data-id="${data.id}">
+                                    <h5>${data.tytul}</h5>
+                                    <small class="text-muted">Nowa notatka</small>
+                                </div>`;
+                            notatkiContainer.prepend(newNote);
+                        }
+                        notatkaModal.hide();
+                    });
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title><!DOCTYPE html>
+<html>
+{% load static %}
+<head>
+    <title>Wszystkie produkty</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #f0f4f8, #d9e6f2);
+            margin: 0;
+            color: #333;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #357abd;
+        }
+        
+        .items-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            padding: 20px;
+        }
+        .item-card {
+            border-radius: 10px;
+            background: white;
+            width: 250px;
+            text-align: center;
+            padding: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .item-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+        .item-card img {
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        .item-card .old-price {
+            text-decoration: line-through;
+            color: #e74c3c;
+        }
+        .item-card .new-price {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .offer-applied {
+            border: 2px solid #e74c3c; 
+            background-color: #f9f9f9;
+        }
+        h2 {
+            text-align: center;
+            color: #4a90e2;
+            margin-top: 20px;
+        }
+        .nav-links {
+            text-align: center;
+            margin-top: 10px;
+        }
+        .nav-links a {
+            color: #4a90e2;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 0 10px;
+        }
+        .nav-links a:hover {
+            text-decoration: underline;
+        }
+        .cart-message {
+            text-align: center;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .cart-message.success {
+            color: #2ecc71;
+        }
+        .cart-message.error {
+            color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <h2>Wszystkie produkty</h2>
+    
+
+    <div class="nav-links">
+        {% if username %}
+            <a href="{% url 'home' %}">Strona główna</a> |
+            <a href="{% url 'view_cart' %}">Koszyk</a> |
+            <a href="{% url 'logout' %}">Wyloguj się</a>
+        {% else %}
+            <a href="{% url 'login' %}">Zaloguj się</a> |
+            <a href="{% url 'register' %}">Zarejestruj się</a>
+        {% endif %}
+    </div>
+
+    <div class="cart-message" id="cart-message"></div>
+    <div class="items-container">
+        {% for produkt in produkty %}
+            <div class="item-card {% if produkt.oferta %}offer-applied{% endif %}">
+                <h3>{{ produkt.nazwa }}</h3>
+                <img src="{% static produkt.sciezka_do_zdjecia %}" alt="{{ produkt.nazwa }}">
+
+                {% if produkt.oferta %}
+                    <p class="old-price">{{ produkt.cena }} zł</p>
+                    <p class="new-price">{{ produkt.cena_promocyjna }} zł</p>
+                {% else %}
+                    <p>{{ produkt.cena }} zł</p>
+                {% endif %}
+
+                <button 
+                    data-product-id="{{ produkt.id }}" 
+                    class="add-to-cart-btn"
+                >
+                    Dodaj do koszyka
+                </button>
+            </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const addToCartButtons = document.querySelectorAll('.add-to-cart-btn');
+            const cartMessage = document.getElementById('cart-message');
+
+            addToCartButtons.forEach(button => {
+                button.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    const productId = this.getAttribute('data-product-id');
+
+                    fetch(`/add_to_cart/${productId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'Content-Type': 'application/json',
+                        },
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            cartMessage.textContent = data.message;
+                            cartMessage.classList.remove('error');
+                            cartMessage.classList.add('success');
+                        } else {
+                            cartMessage.textContent = data.message;
+                            cartMessage.classList.remove('success');
+                            cartMessage.classList.add('error');
+                        }
+                        cartMessage.style.display = 'block';
+                        setTimeout(() => {
+                            cartMessage.style.display = 'none';
+                        }, 3000);
+                    })
+                    .catch(error => {
+                        cartMessage.textContent = 'Błąd dodawania do koszyka.';
+                        cartMessage.classList.remove('success');
+                        cartMessage.classList.add('error');
+                        cartMessage.style.display = 'block';
+                        setTimeout(() => {
+                            cartMessage.style.display = 'none';
+                        }, 3000);
+                        console.error('Error:', error);
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+</title>
+</head>
+<body>
+
+</body>
+</html>

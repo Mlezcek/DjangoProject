@@ -1,0 +1,378 @@
+<!-- clients_crm.html -->
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>CRM - Lista Klientów</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Ikony Bootstrap -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <style>
+    body {
+      background-color: #f8f9fa;
+        display: flex;
+        margin: 0;
+    overflow-x: hidden;
+    }
+    .sidebar {
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      padding-top: 60px;
+      width: 220px;
+      background-color: #343a40;
+      overflow-y: auto;
+    }
+    .sidebar a {
+      color: #ffffff;
+      padding: 15px 20px;
+      display: block;
+      text-decoration: none;
+    }
+    .sidebar a:hover {
+      background-color: #495057;
+      text-decoration: none;
+    }
+    .main-content {
+      margin-left: 220px;
+      padding: 20px;
+    }
+    .chart-container {
+      width: 100%;
+      height: 250px; 
+    }
+    .card.clickable {
+      cursor: pointer;
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .card.clickable:hover {
+      transform: scale(1.05); /* Lekko powiększa kartę */
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); /* Dodaje cień */
+    background-color: #f8f9fa; /* Opcjonalnie zmienia tło */
+    }
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2 class="text-center text-white mb-4">Menu</h2>
+        <a href="/dashboard/"><i class="bi bi-house-door-fill me-2"></i>Strona Główna</a>
+        <a href="/products_stats/"><i class="bi bi-box-seam me-2"></i>Produkty</a>
+        <a href="/klienci/"><i class="bi bi-people-fill me-2"></i>Klienci</a>
+        <a href="/grupy/"><i class="bi bi-collection-fill me-2"></i>Grupy</a>
+        <a href="/oferty/"><i class="bi bi-bag-fill me-2"></i>Oferty</a>
+        <a href="/kreator_ofert/"><i class="bi bi-pencil-square me-2"></i>Kreator Ofert</a>
+        <a href="/predykcje/"><i class="bi bi-graph-up-arrow me-2"></i>Predykcje</a>
+        <a href="/kampanie/"><i class="bi bi-megaphone-fill me-2"></i>Kampanie</a>
+        <a href="/create_campaign/"><i class="bi bi-megaphone-fill me-2"></i>Kreator Kampanii</a>
+        <a href="/notatki/"><i class="bi bi-sticky me-2"></i>Notatki</a>
+</div>
+
+<div class="main-content container-fluid py-4">
+  <h1 class="mb-4">Lista Klientów</h1>
+
+    <!-- Sortowanie -->
+  <div class="mb-4">
+    <a href="?sort=nazwa" class="btn btn-outline-primary {% if sort_param == 'nazwa' %}active{% endif %} me-2">
+      Sortuj według nazwy
+    </a>
+    <a href="?sort=zakupy" class="btn btn-outline-primary {% if sort_param == 'zakupy' %}active{% endif %} me-2">
+      Sortuj według liczby zakupów
+    </a>
+  </div>
+
+
+  <div class="row row-cols-1 row-cols-md-3 g-4">
+    {% for row in clients_data %}
+    <div class="col">
+      <div class="card h-100 clickable"
+           data-bs-toggle="modal"
+           data-bs-target="#clientModal{{ forloop.counter }}">
+        <div class="card-body">
+          <h5 class="card-title">
+            {{ row.client.imie }} {{ row.client.nazwisko }}
+          </h5>
+          <p class="card-text">
+            <strong>Liczba Zakupów:</strong> {{ row.orders_count }}<br>
+            <strong>Liczba Produktów Kupionych:</strong> {{ row.total_products_bought }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="clientModal{{ forloop.counter }}" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              Statystyki: {{ row.client.imie }} {{ row.client.nazwisko }}
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row">
+              <!-- LEWA KOLUMNA -->
+              <div class="col-md-4">
+                <h5>Najczęściej Zamawiane Produkty</h5>
+                {% if row.most_ordered_qs %}
+                  <ul class="list-group mb-3">
+                    {% for prod in row.most_ordered_qs %}
+                    <li class="list-group-item d-flex justify-content-between">
+                      {{ prod.produkt__nazwa }}
+                      <span class="badge bg-primary rounded-pill">
+                        {{ prod.total_qty }}
+                      </span>
+                    </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <p>Brak zamówień.</p>
+                {% endif %}
+
+                <h5>Ranking dopasowań (top 5)</h5>
+                {% if row.compatibility_ranking %}
+                  <ul class="list-group">
+                    {% for rec in row.compatibility_ranking %}
+                    <li class="list-group-item d-flex justify-content-between">
+                      {{ rec.other_product.nazwa }}
+                      <span class="badge bg-success rounded-pill">
+                        {{ rec.score }}%
+                      </span>
+                    </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <p>Brak dopasowań (klient nie ma głównego produktu lub kupił już wszystkie).</p>
+                {% endif %}
+              
+                <h5 class="mt-5">Wartość Życiowa Klienta (CLV)</h5>
+                <p>
+                  <strong>CLV:</strong> {{ row.clv }} PLN
+                </p>
+              
+                <h5 class="mt-5">Suma wydatkow klienta</h5>
+                <p>
+                  <strong>Suma:</strong> {{ row.TotalSpendSum }} PLN
+                </p>
+
+                 <!-- Grupy -->
+                <h5 class="mt-5">Grupy, do których należy klient:</h5>
+                {% if row.grupy %}
+                  <ul class="list-group">
+                    {% for grupa in row.grupy %}
+                    <li class="list-group-item">
+                      {{ grupa.nazwa }}
+                    </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <p>Klient nie należy do żadnej grupy.</p>
+                {% endif %}
+
+              </div>
+
+              <!-- PRAWA KOLUMNA (wykresy) -->
+              <div class="col-md-8">
+                <!-- 1) Wykres słupkowy: zakupy w 7/31/365 -->
+                <h5>Zakupy (kwota i ilość)</h5>
+                <div class="btn-group mb-2" role="group">
+                  <button type="button" class="btn btn-outline-primary"
+                          onclick="showPurchaseChart({{ forloop.counter }}, 'period7')">
+                    Ostatnie 7 dni
+                  </button>
+                  <button type="button" class="btn btn-outline-primary"
+                          onclick="showPurchaseChart({{ forloop.counter }}, 'period31')">
+                    Ostatnie 31 dni
+                  </button>
+                  <button type="button" class="btn btn-outline-primary"
+                          onclick="showPurchaseChart({{ forloop.counter }}, 'period365')">
+                    Ostatni rok
+                  </button>
+                </div>
+                <div class="chart-container mb-4">
+                  <canvas id="purchaseChart{{ forloop.counter }}"></canvas>
+                </div>
+
+                <!-- 2) Diagram kołowy: single vs multi w zamówieniu -->
+                <h5>Diagram (pojedyncze zakupy vs wiele produktow)</h5>
+                <div class="chart-container mb-4">
+                  <canvas id="singleMultiChart{{ forloop.counter }}"></canvas>
+                </div>
+                  
+                <h5>Diagram (cena normalna vs cena promocyjna)</h5>
+                <div class="chart-container mb-4">
+                  <canvas id="priceChart{{ forloop.counter }}"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zamknij</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Bootstrap + Popper -->
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+
+<script>
+const clientsStats = {
+  {% for row in clients_data %}
+  {{ forloop.counter }}: {
+    period7: {
+      labels: {{ row.purchase_diagrams.period7.labels|safe }},
+      amounts: {{ row.purchase_diagrams.period7.amounts|safe }},
+      quantities: {{ row.purchase_diagrams.period7.quantities|safe }}
+    },
+    period31: {
+      labels: {{ row.purchase_diagrams.period31.labels|safe }},
+      amounts: {{ row.purchase_diagrams.period31.amounts|safe }},
+      quantities: {{ row.purchase_diagrams.period31.quantities|safe }}
+    },
+    period365: {
+      labels: {{ row.purchase_diagrams.period365.labels|safe }},
+      amounts: {{ row.purchase_diagrams.period365.amounts|safe }},
+      quantities: {{ row.purchase_diagrams.period365.quantities|safe }}
+    },
+    single_count: {{ row.single_multi.single_count }},
+    multi_count: {{ row.single_multi.multi_count }},
+    normal_price_count: {{ row.price_type.normal_price_count }},
+    offer_price_count: {{ row.price_type.offer_price_count }}
+  },
+  {% endfor %}
+};
+
+let purchaseCharts = {};
+let singleMultiCharts = {};
+let priceCharts = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+  const modals = document.querySelectorAll('.modal');
+  modals.forEach(modal => {
+    modal.addEventListener('shown.bs.modal', function (event) {
+      const modalId = modal.getAttribute('id');
+      const index = modalId.replace('clientModal','');
+      initClientCharts(index);
+    });
+  });
+});
+
+function initClientCharts(index) {
+  if (!purchaseCharts[index]) {
+    const ctxPurchase = document.getElementById(`purchaseChart${index}`).getContext('2d');
+    purchaseCharts[index] = new Chart(ctxPurchase, {
+      type: 'bar',
+      data: {
+        labels: clientsStats[index].period7.labels,
+        datasets: [
+          {
+            label: 'Kwota (PLN)',
+            data: clientsStats[index].period7.amounts,
+            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1,
+            yAxisID: 'y1'
+          },
+          {
+            label: 'Ilość (szt.)',
+            data: clientsStats[index].period7.quantities,
+            backgroundColor: 'rgba(255, 206, 86, 0.5)',
+            borderColor: 'rgba(255, 206, 86, 1)',
+            borderWidth: 1,
+            yAxisID: 'y2'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y1: {
+            beginAtZero: true,
+            position: 'left',
+            title: {
+              display: true,
+              text: 'Kwota (PLN)'
+            }
+          },
+          y2: {
+            beginAtZero: true,
+            position: 'right',
+            title: {
+              display: true,
+              text: 'Ilość (szt.)'
+            },
+            grid: {
+              drawOnChartArea: false
+            }
+          }
+        }
+      }
+    });
+
+    // 2) Kołowy: single vs multi
+    const ctxSingleMulti = document.getElementById(`singleMultiChart${index}`).getContext('2d');
+    singleMultiCharts[index] = new Chart(ctxSingleMulti, {
+      type: 'pie',
+      data: {
+        labels: ['Pojedynczy', 'Wiele'],
+        datasets: [{
+          data: [
+            clientsStats[index].single_count,
+            clientsStats[index].multi_count
+          ],
+          backgroundColor: ['#36a2eb', '#ff6384']
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+
+    // 3) Kołowy: normalna cena vs oferta
+    const ctxPrice = document.getElementById(`priceChart${index}`).getContext('2d');
+    priceCharts[index] = new Chart(ctxPrice, {
+      type: 'pie',
+      data: {
+        labels: ['Normalna cena', 'Oferta'],
+        datasets: [{
+          data: [
+            clientsStats[index].normal_price_count,
+            clientsStats[index].offer_price_count
+          ],
+          backgroundColor: ['#4bc0c0', '#9966ff']
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+  }
+}
+
+
+function showPurchaseChart(index, periodKey) {
+  if (!purchaseCharts[index]) return;
+
+  const chart = purchaseCharts[index];
+  chart.data.labels = clientsStats[index][periodKey].labels;
+  chart.data.datasets[0].data = clientsStats[index][periodKey].amounts;
+  chart.data.datasets[1].data = clientsStats[index][periodKey].quantities;
+  chart.update();
+}
+</script>
+
+</body>
+</html>

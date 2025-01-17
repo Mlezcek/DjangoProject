@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Twoje Zamówienia</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #f0f4f8, #d9e6f2);
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        h2 {
+            text-align: center;
+            color: #4a90e2;
+        }
+        .order-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            margin: 20px auto;
+            max-width: 800px;
+        }
+        .order-header {
+            font-weight: bold;
+            color: #4a90e2;
+        }
+        .order-item {
+            margin: 10px 0;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .order-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <h2>Twoje Zamówienia</h2>
+
+    {% if zamowienia %}
+        {% for zamowienie in zamowienia %}
+            <div class="order-container">
+                <div class="order-header">Zamówienie #{{ zamowienie.id }} - {{ zamowienie.status }}</div>
+                <div>Data utworzenia: {{ zamowienie.data_utworzenia }}</div>
+                <ul>
+                    {% for pozycja in zamowienie.pozycjazamowienia_set.all %}
+                        <li class="order-item">
+                            {{ pozycja.produkt.nazwa }} - Ilość: {{ pozycja.ilosc }} - Cena: {{ pozycja.cena }} zł
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>Nie masz jeszcze żadnych zamówień.</p>
+    {% endif %}
+
+    <a href="{% url 'home' %}">Powrót na stronę główną</a>
+</body>
+</html>

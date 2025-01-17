@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Koszyk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #f0f4f8, #d9e6f2);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            color: #333;
+        }
+        h2 {
+            color: #4a90e2;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .cart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 800px;
+            margin-bottom: 20px;
+        }
+        .cart-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .cart-item:last-child {
+            border-bottom: none;
+        }
+        .item-details {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .item-details h3 {
+            margin: 0;
+            color: #4a90e2;
+            font-size: 1.2em;
+        }
+        .item-details p {
+            margin: 5px 0;
+            font-size: 1em;
+        }
+        .quantity-controls {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .quantity-controls button {
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s;
+        }
+        .quantity-controls button:hover {
+            background-color: #357abd;
+        }
+        .quantity-display {
+            font-size: 1.2em;
+        }
+        .remove-button {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        .remove-button:hover {
+            background-color: #c0392b;
+        }
+        .empty-cart {
+            text-align: center;
+            font-size: 18px;
+            margin-top: 20px;
+            color: #e74c3c;
+        }
+        a {
+            color: #4a90e2;
+            text-decoration: none;
+            font-size: 14px;
+            display: block;
+            margin-top: 10px;
+            text-align: center;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .back-button {
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-bottom: 20px;
+            transition: background-color 0.2s;
+        }
+        .back-button:hover {
+            background-color: #357abd;
+        }
+        .cart-message {
+            text-align: center;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .cart-message.success {
+            color: #2ecc71;
+        }
+        .cart-message.error {
+            color: #e74c3c;
+        }
+        .cart-total {
+            text-align: right;
+            font-size: 1.2em;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Twój koszyk</h2>
+    <button class="back-button" onclick="window.location.href='{% url 'home' %}'">Powrót na stronę główną</button>
+    <div class="cart-message" id="cart-message"></div>
+    <div class="cart-container">
+    {% if pozycje_koszyka %}
+        {% for item in pozycje_koszyka %}
+            <div class="cart-item">
+                <div class="item-details">
+                    <h3>{{ item.produkt.nazwa }}</h3>
+                    <p>
+                        Cena: 
+                        <span style="text-decoration: {% if item.cena_oferty %}line-through{% endif %};">
+                            {{ item.produkt.cena }} zł
+                        </span>
+                        {% if item.cena_oferty %}
+                            <span style="color: #4a90e2;">{{ item.cena_oferty }} zł</span>
+                        {% endif %}
+                    </p>
+                </div>
+                    <div class="quantity-controls">
+                        <button class="quantity-btn decrease-quantity" data-item-id="{{ item.id }}">-</button>
+                            <span class="quantity-display">{{ item.ilosc }}</span>
+                         <button class="quantity-btn increase-quantity" data-item-id="{{ item.id }}">+</button>
+                     </div>
+                     <button class="remove-from-cart-btn remove-button" data-item-id="{{ item.id }}">Usuń</button>
+                </div>
+            {% endfor %}
+            <div class="cart-total">
+                <h3>Całkowita suma: {{ total_sum }} zł</h3>
+            </div>
+        {% else %}
+            <p class="empty-cart">Koszyk jest pusty</p>
+        {% endif %}
+    </div>
+    
+  <script>
+      document.addEventListener('DOMContentLoaded', function () {
+         const cartMessage = document.getElementById('cart-message');
+
+            // Funkcja do wysyłania żądania AJAX
+            const sendCartRequest = (url, method, data = {}) => {
+                return fetch(url, {
+                  method: method,
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    },
+                  body: JSON.stringify(data)
+                })
+                  .then(response => response.json())
+                  .then(data => {
+                      if (data.status === 'success') {
+                            cartMessage.textContent = data.message;
+                           cartMessage.classList.remove('error');
+                            cartMessage.classList.add('success');
+                      } else {
+                            cartMessage.textContent = data.message;
+                             cartMessage.classList.remove('success');
+                              cartMessage.classList.add('error');
+                      }
+                      cartMessage.style.display = 'block';
+
+                             setTimeout(() => {
+                                    cartMessage.style.display = 'none';
+                                }, 3000); 
+                      return data
+                  })
+                    .catch(error => {
+                        cartMessage.textContent = 'Błąd w koszyku.';
+                          cartMessage.classList.remove('success');
+                           cartMessage.classList.add('error');
+                            cartMessage.style.display = 'block';
+                             setTimeout(() => {
+                                    cartMessage.style.display = 'none';
+                                }, 3000); 
+                      console.error('Error:', error)
+                        throw error;
+                    })
+            };
+
+            // Usuwanie pozycji z koszyka
+            const removeButtons = document.querySelectorAll('.remove-from-cart-btn');
+removeButtons.forEach(button => {
+    button.addEventListener('click', function (event) {
+        event.preventDefault();
+        const itemId = this.getAttribute('data-item-id');
+        sendCartRequest(`/remove_from_cart/${itemId}/`, 'POST')
+            .then(data => {
+                if (data.status === 'success') {
+                    
+                    window.location.href = window.location.href;
+                }
+            });
+    });
+});
+
+            // Obsługa zwiększania ilości
+            const increaseButtons = document.querySelectorAll('.increase-quantity');
+              increaseButtons.forEach(button => {
+                 button.addEventListener('click', function (event) {
+                     event.preventDefault();
+                     const itemId = this.getAttribute('data-item-id');
+                     const quantityDisplay = this.parentNode.querySelector('.quantity-display');
+                     const currentQuantity = parseInt(quantityDisplay.textContent);
+
+                     sendCartRequest(`/update_quantity/${itemId}/`, 'POST', { quantity: currentQuantity + 1 })
+                         .then(data => {
+                           if(data.status === 'success') {
+                            quantityDisplay.textContent = currentQuantity + 1;
+                           }
+                         });
+                 });
+           });
+
+           // Obsługa zmniejszania ilości
+           const decreaseButtons = document.querySelectorAll('.decrease-quantity');
+            decreaseButtons.forEach(button => {
+                button.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    const itemId = this.getAttribute('data-item-id');
+                    const quantityDisplay = this.parentNode.querySelector('.quantity-display');
+                     const currentQuantity = parseInt(quantityDisplay.textContent);
+                    if(currentQuantity > 1 ) {
+                        sendCartRequest(`/update_quantity/${itemId}/`, 'POST', { quantity: currentQuantity - 1 })
+                           .then(data => {
+                              if(data.status === 'success') {
+                               quantityDisplay.textContent = currentQuantity - 1;
+                              }
+                         });
+                      }
+                  });
+              });
+        });
+    </script>
+
+    <button class="back-button" id="order-button">Zamów</button>
+
+<script>
+    document.getElementById('order-button').addEventListener('click', function () {
+        fetch('/create_order/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const cartMessage = document.getElementById('cart-message');
+            cartMessage.textContent = data.message;
+            if (data.status === 'success') {
+                cartMessage.classList.remove('error');
+                cartMessage.classList.add('success');
+                setTimeout(() => window.location.href = '{% url "home" %}', 500);
+            } else {
+                cartMessage.classList.remove('success');
+                cartMessage.classList.add('error');
+            }
+            cartMessage.style.display = 'block';
+        })
+        .catch(error => console.error('Error:', error));
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Kampanie</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Ikony Bootstrap -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            display: flex;
+            margin: 0;
+            overflow-x: hidden;
+        }
+        .sidebar {
+            width: 220px;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            padding-top: 60px;
+            background-color: #343a40;
+            overflow-y: auto;
+        }
+        .sidebar a {
+            color: #ffffff;
+            padding: 15px 20px;
+            display: block;
+            text-decoration: none;
+        }
+        .sidebar a:hover {
+            background-color: #495057;
+        }
+        .main-content {
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+        }
+        .campaign-card {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .campaign-card:hover {
+            transform: scale(1.05);
+        }
+        .modal-body {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .chart-container {
+            height: 300px;
+        }
+        .modal-body {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+#statsContainer {
+    flex: 1;
+    margin-right: 20px;
+}
+
+.chart-container {
+    flex-basis: 50%;
+    height: 300px;
+}
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+    <h2 class="text-center text-white mb-4">Menu</h2>
+        <a href="/dashboard/"><i class="bi bi-house-door-fill me-2"></i>Strona Główna</a>
+        <a href="/products_stats/"><i class="bi bi-box-seam me-2"></i>Produkty</a>
+        <a href="/klienci/"><i class="bi bi-people-fill me-2"></i>Klienci</a>
+        <a href="/grupy/"><i class="bi bi-collection-fill me-2"></i>Grupy</a>
+        <a href="/oferty/"><i class="bi bi-bag-fill me-2"></i>Oferty</a>
+        <a href="/kreator_ofert/"><i class="bi bi-pencil-square me-2"></i>Kreator Ofert</a>
+        <a href="/predykcje/"><i class="bi bi-graph-up-arrow me-2"></i>Predykcje</a>
+        <a href="/kampanie/"><i class="bi bi-megaphone-fill me-2"></i>Kampanie</a>
+        <a href="/create_campaign/"><i class="bi bi-megaphone-fill me-2"></i>Kreator Kampanii</a>
+        <a href="/notatki/"><i class="bi bi-sticky me-2"></i>Notatki</a>
+</div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <h1 class="mb-4">Kampanie</h1>
+
+        <!-- Sortowanie -->
+        <div class="mb-4">
+            <label for="sortType" class="form-label">Filtruj kampanie:</label>
+            <select id="sortType" class="form-select w-25">
+                <option value="all">Wszystkie</option>
+                <option value="trwajace">Trwające</option>
+                <option value="zaplanowane">Zaplanowane</option>
+                <option value="przeszle">Przeszłe</option>
+            </select>
+        </div>
+
+        <!-- Lista kampanii -->
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for kampania in kampanie_trwajace %}
+            <div class="col campaign-card" data-status="trwajace" data-id="{{ kampania.id }}">
+                <div class="card border-primary">
+                    <div class="card-body">
+                        <h5 class="card-title">Kampania ID: {{ kampania.id }}</h5>
+                        <p><strong>Rozpoczęcie:</strong> {{ kampania.data_rozpoczecia|date:"Y-m-d H:i" }}</p>
+                        <p><strong>Czas trwania:</strong> {{ kampania.czas_trwania }} dni</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% for kampania in kampanie_zaplanowane %}
+            <div class="col campaign-card" data-status="zaplanowane" data-id="{{ kampania.id }}">
+                <div class="card border-warning">
+                    <div class="card-body">
+                        <h5 class="card-title">Kampania ID: {{ kampania.id }}</h5>
+                        <p><strong>Zaplanowane rozpoczęcie:</strong> {{ kampania.data_rozpoczecia|date:"Y-m-d H:i" }}</p>
+                        <p><strong>Czas trwania:</strong> {{ kampania.czas_trwania }} dni</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% for kampania in kampanie_przeszle %}
+            <div class="col campaign-card" data-status="przeszle" data-id="{{ kampania.id }}">
+                <div class="card border-secondary">
+                    <div class="card-body">
+                        <h5 class="card-title">Kampania ID: {{ kampania.id }}</h5>
+                        <p><strong>Rozpoczęcie:</strong> {{ kampania.data_rozpoczecia|date:"Y-m-d H:i" }}</p>
+                        <p><strong>Zakończenie:</strong> {{ kampania.data_rozpoczecia|date:"Y-m-d H:i" }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="campaignDetails" tabindex="-1" aria-labelledby="campaignDetailsLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="campaignDetailsLabel">Szczegóły Kampanii</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="statsContainer"></div>
+                    <div class="chart-container mt-4">
+                        <canvas id="salesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS + Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+    const sortType = document.getElementById('sortType');
+    const campaignCards = document.querySelectorAll('.campaign-card');
+    let salesChartInstance = null;
+
+    sortType.addEventListener('change', function () {
+        const selectedType = this.value;
+        campaignCards.forEach(card => {
+            if (selectedType === 'all' || card.getAttribute('data-status') === selectedType) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+
+    campaignCards.forEach(card => {
+        card.addEventListener('click', async function () {
+            const campaignId = this.getAttribute('data-id');
+            const response = await fetch(`/kampania/${campaignId}/statystyki`);
+            const data = await response.json();
+
+            // Wyświetlanie danych statystycznych
+            document.getElementById('statsContainer').innerHTML = `
+                <h5>Statystyki:</h5>
+                ${data.statsHtml}
+                <h5>Oferty:</h5>
+                ${data.ofertyHtml}
+                <h5>Grupy:</h5>
+                ${data.grupyHtml}
+            `;
+
+            if (salesChartInstance) {
+                salesChartInstance.destroy();
+            }
+
+            const ctx = document.getElementById('salesChart').getContext('2d');
+            salesChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Sprzedaż (szt.)',
+                            data: data.sprzedaz,
+                            borderColor: 'blue',
+                            fill: false,
+                        },
+                        {
+                            label: 'Zyski (PLN)',
+                            data: data.przychod,
+                            borderColor: 'green',
+                            fill: false,
+                        },
+                    ],
+                },
+            });
+
+            const modal = new bootstrap.Modal(document.getElementById('campaignDetails'));
+            modal.show();
+        });
+    });
+});
+    </script>
+</body>
+</html>

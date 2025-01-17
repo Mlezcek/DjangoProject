@@ -1,0 +1,275 @@
+{% extends 'base.html' %}
+
+{% block title %}Kreator Ofert{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Kreator Ofert</h1>
+
+<!-- Sekcja Statystyk -->
+<div class="row mb-5">
+    <div class="col-md-6">
+        <h3>Najlepiej sprzedające się produkty</h3>
+        <ul class="list-group">
+            {% for produkt in top_best_sellers %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ produkt.produkt__nazwa }}
+                    <span class="badge bg-primary rounded-pill">{{ produkt.total_sztuk }} sztuk</span>
+                </li>
+            {% empty %}
+                <li class="list-group-item">Brak danych.</li>
+            {% endfor %}
+        </ul>
+    </div>
+    <div class="col-md-6">
+        <h3>Najgorzej sprzedające się produkty</h3>
+        <ul class="list-group">
+            {% for produkt in top_worst_sellers %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ produkt.produkt__nazwa }}
+                    <span class="badge bg-danger rounded-pill">{{ produkt.total_sztuk }} sztuk</span>
+                </li>
+            {% empty %}
+                <li class="list-group-item">Brak danych.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<!-- Kreator Ofert -->
+<form method="post" id="kreatorOfertaForm">
+    {% csrf_token %}
+    <!-- Krok 1: Wybór Produktu -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Wybór Produktu</h4>
+        </div>
+        <div class="card-body">
+            {{ form.idPrzedmiotu.label_tag }}
+            {{ form.idPrzedmiotu }}
+            <div id="produktInfo" class="mt-4" style="display: none;">
+                <h5>Informacje o Produkcie:</h5>
+                <p><strong>Cena:</strong> <span id="produktCena"></span> PLN</p>
+                <p><strong>Liczba Sprzedanych Sztuk (31 dni):</strong> <span id="produktSprzedaz"></span></p>
+                <p><strong>Zarobki ze Sprzedaży (31 dni):</strong> <span id="produktZarobki"></span> PLN</p>
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="produktSprzedazChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Krok 2: Wybór Grupy Docelowej -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Wybór Grupy Docelowej</h4>
+        </div>
+        <div class="card-body">
+            {{ form.klienci.label_tag }}
+            {{ form.klienci }}
+            {{ form.grupy.label_tag }}
+            {{ form.grupy }}
+            <div id="grupaInfo" class="mt-4">
+                <p>Wybierz klientów lub grupy, aby zobaczyć ich statystyki dotyczące wybranego produktu.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Krok 3: Ustawienia Oferty -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Ustawienia Oferty</h4>
+        </div>
+        <div class="card-body">
+            {{ form.cena.label_tag }}
+            {{ form.cena }}
+            {{ form.data_rozpoczecia.label_tag }}
+            {{ form.data_rozpoczecia }}
+            {{ form.data_zakonczenia.label_tag }}
+            {{ form.data_zakonczenia }}
+            {{ form.powod.label_tag }}
+            {{ form.powod }}
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-success">Utwórz Ofertę</button>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const produktSelect = document.getElementById('id_idPrzedmiotu');
+    const produktInfoDiv = document.getElementById('produktInfo');
+    const produktCena = document.getElementById('produktCena');
+    const produktSprzedaz = document.getElementById('produktSprzedaz');
+    const produktZarobki = document.getElementById('produktZarobki');
+    const produktSprzedazChartCtx = document.getElementById('produktSprzedazChart').getContext('2d');
+    let produktSprzedazChart;
+
+    // Zmienna do przechowywania wybranego produktu
+    let selectedProduktId = null;
+
+    produktSelect.addEventListener('change', function() {
+        const produktId = this.value;
+        selectedProduktId = produktId; // Aktualizacja zmiennej
+        if (produktId) {
+            fetch(`/api/prod_info/${produktId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        produktInfoDiv.style.display = 'none';
+                        return;
+                    }
+                    produktInfoDiv.style.display = 'block';
+                    produktCena.textContent = data.cena;
+                    produktSprzedaz.textContent = data.sprzedane_sztuki;
+                    produktZarobki.textContent = data.zarobki;
+
+                    // Aktualizacja wykresu
+                    if (produktSprzedazChart) {
+                        produktSprzedazChart.destroy();
+                    }
+                    produktSprzedazChart = new Chart(produktSprzedazChartCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: data.labels,
+                            datasets: [{
+                                label: 'Sprzedaż (sztuki)',
+                                data: data.sprzedaz,
+                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Liczba Sprzedaży'
+                                    },
+                                    ticks: {
+                                        precision: 0
+                                    }
+                                },
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Data'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching product info:', error);
+                });
+        } else {
+            produktInfoDiv.style.display = 'none';
+            if (produktSprzedazChart) {
+                produktSprzedazChart.destroy();
+            }
+        }
+    });
+
+    // Obsługa wybranych klientów/grup
+    const klienciCheckboxes = document.querySelectorAll('input[name="klienci"]');
+    const grupyCheckboxes = document.querySelectorAll('input[name="grupy"]');
+    const grupaInfoDiv = document.getElementById('grupaInfo');
+
+    function fetchGrupaInfo() {
+        const selectedKlienci = Array.from(klienciCheckboxes)
+            .filter(checkbox => checkbox.checked)
+            .map(checkbox => checkbox.value);
+        const selectedGrupy = Array.from(grupyCheckboxes)
+            .filter(checkbox => checkbox.checked)
+            .map(checkbox => checkbox.value);
+
+        if (selectedKlienci.length === 0 && selectedGrupy.length === 0) {
+            grupaInfoDiv.innerHTML = '<p>Brak wybranych klientów/grup.</p>';
+            return;
+        }
+        
+        if (!selectedProduktId) {
+            grupaInfoDiv.innerHTML = '<p>Proszę wybrać produkt najpierw.</p>';
+            return;
+        }
+
+        fetch('/api/grupa_info/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                klienci: selectedKlienci,
+                grupy: selectedGrupy,
+                produkt_id: selectedProduktId  // Przekazanie ID produktu
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                grupaInfoDiv.innerHTML = `<p>${data.error}</p>`;
+                return;
+            }
+
+            let html = '';
+            if (data.klienci.length > 0) {
+                html += '<h5>Statystyki dla Wybranych Klientów:</h5><ul class="list-group mb-3">';
+                data.klienci.forEach(klient => {
+                    html += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                                ${klient.imie} ${klient.nazwisko}
+                                <span class="badge bg-primary rounded-pill">Sztuki: ${klient.sprzedane_sztuki}, Zarobki: ${klient.zarobki} PLN</span>
+                             </li>`;
+                });
+                html += '</ul>';
+            }
+            if (data.grupy.length > 0) {
+                html += '<h5>Statystyki dla Wybranych Grup:</h5><ul class="list-group">';
+                data.grupy.forEach(grupa => {
+                    html += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                                ${grupa.nazwa}
+                                <span class="badge bg-danger rounded-pill">Sztuki: ${grupa.sprzedane_sztuki}, Zarobki: ${grupa.zarobki} PLN</span>
+                             </li>`;
+                });
+                html += '</ul>';
+            }
+            grupaInfoDiv.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error fetching group info:', error);
+            grupaInfoDiv.innerHTML = '<p>Błąd podczas pobierania danych.</p>';
+        });
+    }
+
+    klienciCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', fetchGrupaInfo);
+    });
+    grupyCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', fetchGrupaInfo);
+    });
+
+    // Funkcja do pobierania CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %}

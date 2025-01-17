@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Statystyki Grup</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Ikony Bootstrap -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <style>
+    body {
+      background-color: #f8f9fa;
+        display: flex;
+    margin: 0;
+    overflow-x: hidden;
+    }
+    .sidebar {
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      padding-top: 60px;
+      width: 220px;
+      background-color: #343a40;
+      overflow-y: auto;
+    }
+    .sidebar a {
+      color: #ffffff;
+      padding: 15px 20px;
+      display: block;
+      text-decoration: none;
+    }
+    .sidebar a:hover {
+      background-color: #495057;
+      text-decoration: none;
+    }
+    .main-content {
+      margin-left: 220px;
+      padding: 20px;
+    }
+    .chart-container {
+      width: 100%;
+      height: 300px; 
+    }
+    .group-card {
+      cursor: pointer;
+      color: #ffffff; /* Tekst w kafelku na biało */
+    }
+    .group-card .card-body {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 150px;
+    }
+    .group-description {
+      margin-top: 10px;
+      font-size: 0.9em;
+      color: #555555;
+    }
+    .card {
+      max-width: 250%; /* Karty nie będą większe niż dostępne miejsce */
+    }
+   
+    .sort-btn.active {
+      background-color: #0d6efd;
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+    <h2 class="text-center text-white mb-4">Menu</h2>
+        <a href="/dashboard/"><i class="bi bi-house-door-fill me-2"></i>Strona Główna</a>
+        <a href="/products_stats/"><i class="bi bi-box-seam me-2"></i>Produkty</a>
+        <a href="/klienci/"><i class="bi bi-people-fill me-2"></i>Klienci</a>
+        <a href="/grupy/"><i class="bi bi-collection-fill me-2"></i>Grupy</a>
+        <a href="/oferty/"><i class="bi bi-bag-fill me-2"></i>Oferty</a>
+        <a href="/kreator_ofert/"><i class="bi bi-pencil-square me-2"></i>Kreator Ofert</a>
+        <a href="/predykcje/"><i class="bi bi-graph-up-arrow me-2"></i>Predykcje</a>
+        <a href="/kampanie/"><i class="bi bi-megaphone-fill me-2"></i>Kampanie</a>
+        <a href="/create_campaign/"><i class="bi bi-megaphone-fill me-2"></i>Kreator Kampanii</a>
+        <a href="/notatki/"><i class="bi bi-sticky me-2"></i>Notatki</a>
+</div>
+<div class="main-content container-fluid py-4">
+  <h1 class="mb-4">Statystyki Grup</h1>
+
+  <!-- Przyciski Sortowania -->
+  <div class="mb-4">
+    <span class="me-2">Sortuj według:</span>
+    <a href="?sort=nazwa" class="btn btn-outline-primary sort-btn {% if current_sort == 'nazwa' %}active{% endif %} me-2">
+      Nazwa
+    </a>
+    <a href="?sort=liczba_czlonkow" class="btn btn-outline-primary sort-btn {% if current_sort == 'liczba_czlonkow' %}active{% endif %} me-2">
+      Liczby Członków
+    </a>
+    <a href="?sort=srednia_kwota" class="btn btn-outline-primary sort-btn {% if current_sort == 'srednia_kwota' %}active{% endif %}">
+      Średnia Kwota Zakupów
+    </a>
+  </div>
+  <!-- Przycisk "Utwórz Grupę" -->
+  <button type="button" class="btn btn-primary mb-4" data-bs-toggle="modal" data-bs-target="#createGroupModal">
+    Utwórz Grupę
+  </button>
+
+
+
+  <!-- Lista grup w formie kafelków -->
+  <div class="row row-cols-1 row-cols-md-3 g-4 mb-5">
+    {% for group in groups_data %}
+    <div class="col">
+      <div class="card group-card" style="background-color: {{ group.grupa.color }};" data-bs-toggle="modal" data-bs-target="#groupModal{{ forloop.counter }}">
+        <div class="card-body">
+          <h5 class="card-title text-center">{{ group.grupa.nazwa|capfirst }}</h5>
+          <p class="card-text text-center">
+            <strong>Liczba Członków:</strong> {{ group.stats.liczba_czlonkow }}<br>
+            <strong>Liczba Zakupów:</strong> {{ group.stats.liczba_zakupow }}<br>
+            <strong>Średnia Kwota Zakupów:</strong> {{ group.stats.srednia_kwota }} PLN
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal dla każdej grupy -->
+    <div class="modal fade" id="groupModal{{ forloop.counter }}" tabindex="-1" aria-labelledby="groupModalLabel{{ forloop.counter }}" aria-hidden="true">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header" style="background-color: {{ group.grupa.color }}; color: #ffffff;">
+            <h5 class="modal-title" id="groupModalLabel{{ forloop.counter }}">{{ group.grupa.nazwa|capfirst }} - Statystyki</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row">
+              <!-- Statystyki grupy -->
+              <div class="col-md-4">
+                <h5>Statystyki</h5>
+                <ul class="list-group mb-4">
+                  <li class="list-group-item"><strong>Liczba Członków:</strong> {{ group.stats.liczba_czlonkow }}</li>
+                  <li class="list-group-item"><strong>Liczba Zakupów:</strong> {{ group.stats.liczba_zakupow }}</li>
+                  <li class="list-group-item"><strong>Średnia Kwota Zakupów:</strong> {{ group.stats.srednia_kwota }} PLN</li>
+                  <li class="list-group-item"><strong>Ulubione Produkty (Top 5):</strong>
+                    <ul>
+                      {% for produkt in group.stats.ulubione_produkty %}
+                      <li>{{ produkt.produkt__nazwa }} ({{ produkt.liczba_zakupow }} zakupów)</li>
+                      {% endfor %}
+                    </ul>
+                  </li>
+                  <li class="list-group-item"><strong>Procentowa Reprezentacja:</strong> {{ group.stats.procent_grupy }}%</li>
+                </ul>
+
+                <!-- Opis grupy -->
+                {% if group.grupa.opis %}
+                <h5>Opis Grupy</h5>
+                <p class="group-description">{{ group.grupa.opis }}</p>
+                {% endif %}
+
+                <!-- Lista klientów w grupie -->
+                <h5>Klienci w Grupie</h5>
+                <ul class="list-group">
+                  {% for client in group.klienci %}
+                  <li class="list-group-item">{{ client.klient.imie }} {{ client.klient.nazwisko }}</li>
+                  {% endfor %}
+                  {% if not group.klienci %}
+                  <li class="list-group-item">Brak klientów w tej grupie.</li>
+                  {% endif %}
+                </ul>
+              </div>
+
+              <!-- Statystyki graficzne -->
+              <div class="col-md-8">
+                <!-- Wykres liczby członków w czasie -->
+                <h5>Liczba Członków w Czasie</h5>
+                <div class="chart-container mb-4">
+                  <canvas id="membersOverTimeChart{{ forloop.counter }}"></canvas>
+                </div>
+
+                <!-- Wykres kołowy zakupów grupy względem innych grup -->
+                <h5>Zakupy Grupy vs Inne Grupy</h5>
+                <div class="chart-container mb-4">
+                  <canvas id="purchasesPieChart{{ forloop.counter }}"></canvas>
+                </div>
+
+                <!-- Wykres liczby zakupów w ostatnich 7/14/31 dniach -->
+                <h5>Liczba Zakupów w Ostatnich Dniach</h5>
+                <div class="btn-group mb-2" role="group" aria-label="Buttons for days selection">
+                  <button type="button" class="btn btn-outline-primary" onclick="updatePurchasesBarChart('{{ forloop.counter }}', 7)">7 Dni</button>
+                  <button type="button" class="btn btn-outline-primary" onclick="updatePurchasesBarChart('{{ forloop.counter }}', 14)">14 Dni</button>
+                  <button type="button" class="btn btn-outline-primary" onclick="updatePurchasesBarChart('{{ forloop.counter }}', 31)">31 Dni</button>
+                </div>
+                <div class="chart-container mb-4">
+                  <canvas id="purchasesLastDaysChart{{ forloop.counter }}"></canvas>
+                </div>
+
+                <!-- Przycisk do tworzenia oferty grupowej -->
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createOfferModal" data-grupa-id="{{ group.grupa.id }}" data-grupa-nazwa="{{ group.grupa.nazwa }}">
+                  Utwórz ofertę dla grupy
+                </button>
+                <!-- Przycisk do usunięcia grupy -->
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteGroupModal" data-grupa-id="{{ group.grupa.id }}" data-grupa-nazwa="{{ group.grupa.nazwa }}">
+                  Usuń grupę
+                </button>
+              </div>
+            </div> <!-- /row -->
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zamknij</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Modal do tworzenia nowej grupy -->
+<div class="modal fade" id="createGroupModal" tabindex="-1" aria-labelledby="createGroupModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="createGroupForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="createGroupModalLabel">Utwórz Nową Grupę</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          {% csrf_token %}
+          <!-- Pola Grupy -->
+          <div class="mb-3">
+            <label for="id_nazwa" class="form-label">Nazwa Grupy</label>
+            <input type="text" class="form-control" id="id_nazwa" name="nazwa" required>
+            <div class="invalid-feedback" id="error_nazwa"></div>
+          </div>
+          <div class="mb-3">
+            <label for="id_opis" class="form-label">Opis Grupy</label>
+            <textarea class="form-control" id="id_opis" name="opis" rows="3"></textarea>
+            <div class="invalid-feedback" id="error_opis"></div>
+          </div>
+          <div class="mb-3">
+            <label for="id_color" class="form-label">Kolor Grupy</label>
+            <input type="color" class="form-control form-control-color" id="id_color" name="color" value="#007bff" title="Wybierz kolor">
+            <div class="invalid-feedback" id="error_color"></div>
+          </div>
+          <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" id="id_is_predefined" name="is_predefined">
+            <label class="form-check-label" for="id_is_predefined">Grupa Predefiniowana</label>
+            <div class="invalid-feedback" id="error_is_predefined"></div>
+          </div>
+
+          <hr>
+
+          <!-- Pola Warunku -->
+          <h5>Warunek dla Grupy</h5>
+          <div class="mb-3">
+            <label for="id_condition_type" class="form-label">Typ Warunku</label>
+            <select class="form-select" id="id_condition_type" name="condition_type" required>
+              <option value="">Wybierz typ warunku</option>
+              {% for key, value in grupa_form.fields.condition_type.choices %}
+              <option value="{{ key }}">{{ value }}</option>
+              {% endfor %}
+            </select>
+            <div class="invalid-feedback" id="error_condition_type"></div>
+          </div>
+          <div class="mb-3" id="condition_fields">
+            <!-- Dynamiczne pola warunków -->
+            <!-- Purchase Item -->
+            <div class="purchase_item condition_field" style="display: none;">
+              <label for="id_produkt" class="form-label">Produkt</label>
+              <select class="form-select" id="id_produkt" name="produkt">
+                <option value="">Wybierz produkt</option>
+                {% for produkt in grupa_form.fields.produkt.queryset %}
+                <option value="{{ produkt.id }}">{{ produkt.nazwa }}</option>
+                {% endfor %}
+              </select>
+              <div class="invalid-feedback" id="error_produkt"></div>
+            </div>
+            <div class="purchase_item condition_field" style="display: none;">
+              <label for="id_min_ilosc" class="form-label">Minimalna Ilość</label>
+              <input type="number" class="form-control" id="id_min_ilosc" name="min_ilosc">
+              <div class="invalid-feedback" id="error_min_ilosc"></div>
+            </div>
+            <div class="purchase_item condition_field" style="display: none;">
+              <label for="id_max_ilosc" class="form-label">Maksymalna Ilość</label>
+              <input type="number" class="form-control" id="id_max_ilosc" name="max_ilosc">
+              <div class="invalid-feedback" id="error_max_ilosc"></div>
+            </div>
+
+            <!-- Spend Last Days -->
+            <div class="spend_last_days condition_field" style="display: none;">
+              <label for="id_days_last" class="form-label">Liczba Dni</label>
+              <input type="number" class="form-control" id="id_days_last" name="days_last">
+              <div class="invalid-feedback" id="error_days_last"></div>
+            </div>
+            <div class="spend_last_days condition_field" style="display: none;">
+              <label for="id_min_wydano" class="form-label">Minimalna Kwota Wydana</label>
+              <input type="number" step="0.01" class="form-control" id="id_min_wydano" name="min_wydano">
+              <div class="invalid-feedback" id="error_min_wydano"></div>
+            </div>
+            <div class="spend_last_days condition_field" style="display: none;">
+              <label for="id_max_wydano" class="form-label">Maksymalna Kwota Wydana</label>
+              <input type="number" step="0.01" class="form-control" id="id_max_wydano" name="max_wydano">
+              <div class="invalid-feedback" id="error_max_wydano"></div>
+            </div>
+
+            <!-- Spend Total -->
+            <div class="spend_total condition_field" style="display: none;">
+              <label for="id_min_wydano_total" class="form-label">Minimalna Całkowita Kwota Wydana</label>
+              <input type="number" step="0.01" class="form-control" id="id_min_wydano_total" name="min_wydano_total">
+              <div class="invalid-feedback" id="error_min_wydano_total"></div>
+            </div>
+            <div class="spend_total condition_field" style="display: none;">
+              <label for="id_max_wydano_total" class="form-label">Maksymalna Całkowita Kwota Wydana</label>
+              <input type="number" step="0.01" class="form-control" id="id_max_wydano_total" name="max_wydano_total">
+              <div class="invalid-feedback" id="error_max_wydano_total"></div>
+            </div>
+
+            <!-- Account Age -->
+            <div class="account_age condition_field" style="display: none;">
+              <label for="id_min_dni" class="form-label">Minimalny Wiek Konta (dni)</label>
+              <input type="number" class="form-control" id="id_min_dni" name="min_dni">
+              <div class="invalid-feedback" id="error_min_dni"></div>
+            </div>
+            <div class="account_age condition_field" style="display: none;">
+              <label for="id_max_dni" class="form-label">Maksymalny Wiek Konta (dni)</label>
+              <input type="number" class="form-control" id="id_max_dni" name="max_dni">
+              <div class="invalid-feedback" id="error_max_dni"></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Utwórz Grupę</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal do usuwania grupy -->
+<div class="modal fade" id="deleteGroupModal" tabindex="-1" aria-labelledby="deleteGroupModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="deleteGroupForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="deleteGroupModalLabel">Usuń Grupę</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          <p>Czy na pewno chcesz usunąć tę grupę? Aby potwierdzić, wpisz jej nazwę poniżej:</p>
+          <input type="hidden" id="delete_grupa_id" name="grupa_id">
+          <div class="mb-3">
+            <label for="delete_confirmation_name" class="form-label">Nazwa grupy</label>
+            <input type="text" class="form-control" id="delete_confirmation_name" name="confirmation_name" required>
+            <div class="invalid-feedback">Wprowadź nazwę grupy, aby potwierdzić.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-danger">Usuń grupę</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal do tworzenia oferty grupowej -->
+<div class="modal fade" id="createOfferModal" tabindex="-1" aria-labelledby="createOfferModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="createOfferForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="createOfferModalLabel">Utwórz Ofertę dla Grupy</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" id="offer_grupa_id" name="grupa_id">
+
+          <div class="mb-3">
+            <label for="offer_produkt" class="form-label">Przedmiot</label>
+            <select class="form-select" id="offer_produkt" name="produkt" required>
+              <option value="">Wybierz produkt</option>
+              {% for produkt in oferta_form.fields.produkt.queryset %}
+              <option value="{{ produkt.id }}">{{ produkt.nazwa }}</option>
+              {% endfor %}
+            </select>
+            <div class="invalid-feedback" id="offer_error_produkt"></div>
+          </div>
+          <div class="mb-3">
+            <label for="offer_data_rozpoczecia" class="form-label">Data rozpoczęcia</label>
+            <input type="datetime-local" class="form-control" id="offer_data_rozpoczecia" name="data_rozpoczecia" required>
+            <div class="invalid-feedback" id="offer_error_data_rozpoczecia"></div>
+          </div>
+          <div class="mb-3">
+            <label for="offer_data_zakonczenia" class="form-label">Data zakończenia</label>
+            <input type="datetime-local" class="form-control" id="offer_data_zakonczenia" name="data_zakonczenia" required>
+            <div class="invalid-feedback" id="offer_error_data_zakonczenia"></div>
+          </div>
+          <div class="mb-3">
+            <label for="offer_cena" class="form-label">Kwota</label>
+            <input type="number" step="0.01" class="form-control" id="offer_cena" name="cena" required>
+            <div class="invalid-feedback" id="offer_error_cena"></div>
+          </div>
+          <div class="mb-3">
+            <label for="offer_powod" class="form-label">Powód</label>
+            <input type="text" class="form-control" id="offer_powod" name="powod" required>
+            <div class="invalid-feedback" id="offer_error_powod"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Utwórz Ofertę</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap + Popper -->
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const deleteGroupModal = document.getElementById('deleteGroupModal');
+  deleteGroupModal.addEventListener('show.bs.modal', function(event) {
+    const button = event.relatedTarget;
+    const groupId = button.getAttribute('data-grupa-id');
+    const groupName = button.getAttribute('data-grupa-nazwa');
+
+    document.getElementById('delete_grupa_id').value = groupId;
+    document.getElementById('delete_confirmation_name').placeholder = `Wpisz nazwę grupy: ${groupName}`;
+  });
+
+  const deleteGroupForm = document.getElementById('deleteGroupForm');
+  deleteGroupForm.addEventListener('submit', function(event) {
+    event.preventDefault();
+
+    const formData = new FormData(deleteGroupForm);
+    fetch('{% url "delete_group" %}', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': '{{ csrf_token }}'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert(data.message);
+        location.reload();
+      } else {
+        alert(data.message);
+      }
+    })
+    .catch(error => console.error('Błąd:', error));
+  });
+});
+</script>
+
+<script>
+
+const clientsStats = {
+  {% for group in groups_data %}
+  "groups_data{{ forloop.counter }}": {
+    "wykres_liczby_czlonkow": {
+      "labels": {{ group.stats.wykres_liczby_czlonkow.labels|safe }},
+      "data": {{ group.stats.wykres_liczby_czlonkow.data|safe }}
+    },
+    "wykres_zakupow_rel_other_groups": {
+      "labels": {{ group.stats.wykres_zakupow_rel_other_groups.labels|safe }},
+      "data": {{ group.stats.wykres_zakupow_rel_other_groups.data|safe }}
+    },
+    "wykres_zakupow_ostatnie_dni": {{ group.stats.wykres_zakupow_ostatnie_dni|safe }}
+  },
+  {% endfor %}
+};
+
+
+function initMembersOverTimeChart(chartId, labels, data) {
+  const ctx = document.getElementById(chartId).getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Liczba Członków',
+        data: data,
+        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        borderWidth: 1,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+    }
+  });
+}
+
+
+function initPurchasesPieChart(chartId, labels, data) {
+  const ctx = document.getElementById(chartId).getContext('2d');
+  new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: ['#36A2EB', '#FF6384'],
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+    }
+  });
+}
+
+
+let purchasesLastDaysCharts = {};
+
+function initPurchasesLastDaysChart(chartId, label, data) {
+  const ctx = document.getElementById(chartId).getContext('2d');
+  purchasesLastDaysCharts[chartId] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: [label],
+      datasets: [{
+        label: 'Liczba Zakupów',
+        data: [data],
+        backgroundColor: 'rgba(153, 102, 255, 0.5)',
+        borderColor: 'rgba(153, 102, 255, 1)',
+        borderWidth: 1,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          precision: 0
+        }
+      }
+    }
+  });
+}
+
+
+function updatePurchasesBarChart(chartCounter, days) {
+  const chartId = `purchasesLastDaysChart${chartCounter}`;
+  const data = clientsStats[`groups_data${chartCounter}`].wykres_zakupow_ostatnie_dni[`dni_${days}`];
+  const chart = purchasesLastDaysCharts[chartId];
+  if (chart) {
+    chart.data.datasets[0].data = [data];
+    chart.data.labels = [`Ostatnie ${days} dni`];
+    chart.update();
+  }
+}
+
+
+document.addEventListener('DOMContentLoaded', function() {
+  {% for group in groups_data %}
+  // Inicjalizacja wykresu liczby członków w czasie
+  initMembersOverTimeChart(
+    'membersOverTimeChart{{ forloop.counter }}',
+    clientsStats["groups_data{{ forloop.counter }}"].wykres_liczby_czlonkow.labels,
+    clientsStats["groups_data{{ forloop.counter }}"].wykres_liczby_czlonkow.data
+  );
+
+  // Inicjalizacja wykresu kołowego zakupów względem innych grup
+  initPurchasesPieChart(
+    'purchasesPieChart{{ forloop.counter }}',
+    clientsStats["groups_data{{ forloop.counter }}"].wykres_zakupow_rel_other_groups.labels,
+    clientsStats["groups_data{{ forloop.counter }}"].wykres_zakupow_rel_other_groups.data
+  );
+
+  // Inicjalizacja wykresu liczby zakupów w ostatnich 7 dni jako domyślny
+  initPurchasesLastDaysChart(
+    'purchasesLastDaysChart{{ forloop.counter }}',
+    'Ostatnie 7 dni',
+    clientsStats["groups_data{{ forloop.counter }}"].wykres_zakupow_ostatnie_dni.dni_7
+  );
+  {% endfor %}
+
+  // Obsługa formularza tworzenia grupy
+  const createGroupForm = document.getElementById('createGroupForm');
+  createGroupForm.addEventListener('submit', function(event) {
+    event.preventDefault();  // Zapobiega przeładowaniu strony
+
+    // Pobranie danych z formularza
+    const formData = new FormData(createGroupForm);
+
+    // Pobranie tokenu CSRF z ciasteczka
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          // Sprawdzenie, czy ciasteczko zaczyna się od podanej nazwy
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    // Wysłanie danych do serwera za pomocą AJAX
+    fetch("{% url 'create_group' %}", {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrftoken,
+      },
+      body: formData,
+    })
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(data => {
+          throw data;
+        });
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        // Zamknięcie modalu
+        const createGroupModal = new bootstrap.Modal(document.getElementById('createGroupModal'));
+        createGroupModal.hide();
+
+        // Dodanie nowej grupy do listy grup bez przeładowania strony
+        const groupsContainer = document.querySelector('.row-cols-md-3');
+        const newGroupCol = document.createElement('div');
+        newGroupCol.classList.add('col');
+        newGroupCol.innerHTML = `
+          <div class="card group-card" style="background-color: ${data.group.color};" data-bs-toggle="modal" data-bs-target="#groupModal${data.group.id}">
+            <div class="card-body">
+              <h5 class="card-title text-center">${data.group.nazwa.charAt(0).toUpperCase() + data.group.nazwa.slice(1)}</h5>
+              <p class="card-text text-center">
+                <strong>Liczba Członków:</strong> 0<br>
+                <strong>Liczba Zakupów:</strong> 0<br>
+                <strong>Średnia Kwota Zakupów:</strong> 0 PLN
+              </p>
+            </div>
+          </div>
+        `;
+        groupsContainer.prepend(newGroupCol);
+
+        // Resetowanie formularza
+        createGroupForm.reset();
+        // Ukrywanie wszystkich warunków
+        document.querySelectorAll('.condition_field').forEach(function(field) {
+          field.style.display = 'none';
+        });
+        createGroupForm.classList.remove('was-validated');
+
+        // Dodanie informacji o sukcesie
+        alert('Grupa została pomyślnie utworzona.');
+      } else {
+        // Wyświetlenie błędów formularza
+        for (const [field, errors] of Object.entries(data.errors)) {
+          const errorDiv = document.getElementById(`error_${field}`);
+          if (errorDiv) {
+            errorDiv.textContent = errors.join(', ');
+            document.getElementById(`id_${field}`).classList.add('is-invalid');
+          }
+        }
+      }
+    })
+    .catch(errorData => {
+      if (errorData.errors) {
+        // Wyświetlenie błędów formularza
+        for (const [field, errors] of Object.entries(errorData.errors)) {
+          const errorDiv = document.getElementById(`error_${field}`);
+          if (errorDiv) {
+            errorDiv.textContent = errors.join(', ');
+            document.getElementById(`id_${field}`).classList.add('is-invalid');
+          }
+        }
+      } else {
+        console.error('Error:', errorData);
+      }
+    });
+  });
+
+  // Obsługa dynamicznego wyświetlania pól warunków
+  const conditionTypeSelect = document.getElementById('id_condition_type');
+  conditionTypeSelect.addEventListener('change', function() {
+    const selectedCondition = this.value;
+
+    document.querySelectorAll('.condition_field').forEach(function(field) {
+      field.style.display = 'none';
+
+      const input = field.querySelector('input, select, textarea');
+      if (input) {
+        input.classList.remove('is-invalid');
+      }
+    });
+      
+    if (selectedCondition) {
+      document.querySelectorAll(`.${selectedCondition}`).forEach(function(field) {
+        field.style.display = 'block';
+      });
+    }
+  });
+
+  // Obsługa przycisku "Utwórz ofertę dla grupy" w każdej grupie
+  const createOfferModals = document.querySelectorAll('[data-bs-target="#createOfferModal"]');
+  createOfferModals.forEach(function(button) {
+    button.addEventListener('click', function(event) {
+      const grupaId = this.getAttribute('data-grupa-id');
+      const grupaNazwa = this.getAttribute('data-grupa-nazwa');
+
+      // Ustawienie nazwy grupy w tytule modalu
+      document.getElementById('createOfferModalLabel').textContent = `Utwórz Ofertę dla Grupy: ${grupaNazwa}`;
+
+      // Ustawienie ukrytego pola grupa_id
+      document.getElementById('offer_grupa_id').value = grupaId;
+
+      // Resetowanie formularza oferty
+      const createOfferForm = document.getElementById('createOfferForm');
+      createOfferForm.reset();
+
+      // Usuwanie błędów walidacji
+      document.querySelectorAll('#createOfferForm .is-invalid').forEach(function(element) {
+        element.classList.remove('is-invalid');
+      });
+        
+    });
+  });
+
+  // Obsługa formularza tworzenia oferty
+  const createOfferForm = document.getElementById('createOfferForm');
+  createOfferForm.addEventListener('submit', function(event) {
+    event.preventDefault();  // Zapobiega przeładowaniu strony
+
+
+    const formData = new FormData(createOfferForm);
+
+    // Pobranie tokenu CSRF z ciasteczka
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          // Sprawdzenie, czy ciasteczko zaczyna się od podanej nazwy
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    // Wysłanie danych do serwera za pomocą AJAX
+    fetch("{% url 'create_group_offer' %}", {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrftoken,
+      },
+      body: formData,
+    })
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(data => {
+          throw data;
+        });
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        // Zamknięcie modalu
+        const createOfferModal = new bootstrap.Modal(document.getElementById('createOfferModal'));
+        createOfferModal.hide();
+
+
+        alert(`Oferta została utworzona dla grupy '${data.offer.grupa}'. Ilość ofert: ${data.offer.liczba_ofert}.`);
+dy
+      } else {
+
+        for (const [field, errors] of Object.entries(data.errors)) {
+          const errorDiv = document.getElementById(`offer_error_${field}`);
+          if (errorDiv) {
+            errorDiv.textContent = errors.join(', ');
+            document.getElementById(`offer_${field}`).classList.add('is-invalid');
+          }
+        }
+      }
+    })
+    .catch(errorData => {
+      if (errorData.errors) {
+
+        for (const [field, errors] of Object.entries(errorData.errors)) {
+          const errorDiv = document.getElementById(`offer_error_${field}`);
+          if (errorDiv) {
+            errorDiv.textContent = errors.join(', ');
+            document.getElementById(`offer_${field}`).classList.add('is-invalid');
+          }
+        }
+      } else {
+        console.error('Error:', errorData);
+      }
+    });
+  });
+});
+</script>
+
+<script>
+
+</script>
+
+</body>
+</html>
